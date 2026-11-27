@@ -149,20 +149,20 @@
     ]
   },
   "sourceBackoff": {
-    "Linux.do": "2026-11-27T21:31:48.687Z",
-    "Reddit posts": "2026-11-26T04:50:05.655Z",
+    "Linux.do": "2026-11-28T05:41:37.477Z",
+    "Reddit posts": "2026-11-28T00:11:37.477Z",
     "Reddit comments": "2026-11-27T16:01:48.687Z",
-    "Reddit public keyword search": "2026-11-27T16:01:48.687Z"
+    "Reddit public keyword search": "2026-11-28T00:11:37.477Z"
   },
   "searchCredits": {
     "day": "2026-11-27",
-    "spent": 8,
-    "freeRemaining": 4766,
+    "spent": 9,
+    "freeRemaining": 4765,
     "resetsAt": "2026-12-01T00:00:00.000Z",
     "dailyLimit": 1193
   },
   "xSearch": {
-    "completedAt": "2026-11-27T15:31:48.687Z"
+    "completedAt": "2026-11-27T23:41:37.477Z"
   },
-  "lastScanAt": "2026-11-27T15:31:48.687Z"
+  "lastScanAt": "2026-11-27T23:41:37.477Z"
 }
