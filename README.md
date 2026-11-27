@@ -16,7 +16,7 @@ Reddit public keyword search also uses Weir, across communities rather than a fi
 
 On HTTP 429 or 503 the monitor waits at least 30 minutes, respecting longer Retry-After headers. On HTTP 403 it waits at least six hours. Access to blocked Reddit sources through the approved Data API requires separate credentials and Reddit approval. At setup, Weir also reported that Reddit was refusing its requests. Failed provider calls are not charged, and scheduled retries resume when that source recovers.
 
-Only links with source publication dates within 48 hours qualify. Crossed-out links, directory entries marked retired, and offers explicitly marked claimed or expired are excluded. Query strings are removed and sent codes are deduplicated persistently. Availability at redemption remains unverified.
+Only links with source publication dates within the last 20 minutes qualify. Crossed-out links, directory entries marked retired, and offers explicitly marked claimed or expired are excluded. Query strings are removed and sent codes are deduplicated persistently. Availability at redemption remains unverified.
 
 ## Operation
 

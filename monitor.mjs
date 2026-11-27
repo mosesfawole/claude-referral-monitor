@@ -1,5 +1,5 @@
 import { readFile, writeFile, rename } from 'node:fs/promises';
-import { codeHash, extractPasses, parseDirectory, parseFeed } from './parsers.mjs';
+import { codeHash, extractPasses, isFresh, MAX_PASS_AGE_MS, parseDirectory, parseFeed } from './parsers.mjs';
 import { scanXSearch } from './x-search.mjs';
 import { scanRedditSearch } from './reddit-search.mjs';
 import { createBudgetedRequest } from './credit-budget.mjs';
@@ -98,7 +98,7 @@ async function scanHackerNews() {
   const endpoint = new URL('https://hn.algolia.com/api/v1/search_by_date');
   endpoint.searchParams.set('query', 'claude.ai/referral/');
   endpoint.searchParams.set('hitsPerPage', '100');
-  endpoint.searchParams.set('numericFilters', `created_at_i>${Math.floor(now / 1000 - 48 * 3600)}`);
+  endpoint.searchParams.set('numericFilters', `created_at_i>${Math.ceil((now - MAX_PASS_AGE_MS) / 1000) - 1}`);
   const response = await fetchPublic(endpoint);
   const data = JSON.parse(response.body);
   if (!Array.isArray(data.hits)) throw new Error('Search response missing hits');
@@ -143,7 +143,11 @@ results.forEach((result, index) => {
   const name = sources[index].name;
   if (result.status === 'fulfilled') {
     successful.push(name);
-    for (const pass of result.value) candidates.set(codeHash(pass.code), pass);
+    for (const pass of result.value) {
+      const hash = codeHash(pass.code);
+      const existing = candidates.get(hash);
+      if (!existing || pass.published < existing.published) candidates.set(hash, pass);
+    }
     console.log(`${name}: OK, ${result.value.length} recent links`);
   } else {
     failed.push(name);
@@ -169,15 +173,21 @@ try {
   }
 
   const latestControls = interactive ? await readControls() : controls;
-  const fresh = latestControls.paused ? [] : [...candidates].filter(([hash]) => !state.seen[hash] && !latestControls.used.includes(hash.slice(0, 32)));
+  const fresh = latestControls.paused ? [] : [...candidates]
+    .filter(([hash]) => !state.seen[hash] && !latestControls.used.includes(hash.slice(0, 32)))
+    .sort(([, a], [, b]) => b.published.localeCompare(a.published));
+  let freshCount = 0;
   for (let offset = 0; offset < fresh.length; offset += 5) {
-    const batch = fresh.slice(offset, offset + 5);
+    const sendTime = Date.now();
+    const batch = fresh.slice(offset, offset + 5).filter(([, pass]) => isFresh(new Date(pass.published), sendTime));
+    if (!batch.length) break;
+    freshCount += batch.length;
     if (dryRun) {
       console.log(`Would send one alert containing ${batch.length} fresh passes`);
       continue;
     }
     const passes = batch.map(([hash, pass]) => ({ ...pass, hash: hash.slice(0, 32) }));
-    const card = passCard(passes);
+    const card = passCard(passes, [], sendTime);
     const message = await sendTelegram(card.text, { reply_markup: card.reply_markup });
     batch.forEach(([hash], index) => {
       state.seen[hash] = new Date().toISOString();
@@ -193,7 +203,7 @@ try {
     console.log('Cloud Telegram test delivered successfully');
   }
 
-  console.log(`Scan complete: ${successful.length}/${sources.length} sources readable, ${fresh.length} new links`);
+  console.log(`Scan complete: ${successful.length}/${sources.length} sources readable, ${freshCount} new links`);
 } finally {
   await saveState();
   if (interactive && !dryRun) await publishSnapshot(state, delivered);

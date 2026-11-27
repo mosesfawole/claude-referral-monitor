@@ -88,3 +88,18 @@ test('the webhook rejects missing or incorrect secrets', () => {
   assert.equal(hasWebhookSecret('wrong', 'secret'), false);
   assert.equal(hasWebhookSecret('secret', 'secret'), true);
 });
+
+test('Recent finds excludes expired passes and displays the newest pass first in seconds', () => {
+  const now = Date.parse('2026-11-18T10:00:00Z');
+  const recent = [1_200_001, 1_200_000, 25_000].map((age, index) => ({
+    hash: String(index).repeat(32),
+    source: 'https://x.com/user/status/1',
+    url: `https://claude.ai/referral/passCode${index}`,
+    published: new Date(now - age).toISOString(),
+  }));
+  const card = renderScreen('latest', defaultControls, { recent }, now);
+  assert.match(card.text, /25 sec ago[\s\S]*20 min ago/);
+  assert.deepEqual(card.reply_markup.inline_keyboard.slice(0, -1).map(row => row[0].url),
+    [recent[2].url, recent[1].url]);
+  assert.match(renderScreen('latest', defaultControls, { recent: [recent[0]] }, now).text, /No passes from the last 20 minutes/);
+});

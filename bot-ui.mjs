@@ -1,3 +1,5 @@
+import { isFresh, MAX_PASS_AGE_MINUTES } from './parsers.mjs';
+
 export const escapeHtml = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
 export const commands = [
@@ -29,9 +31,10 @@ export function sourceName(url) {
 }
 
 function age(date, now) {
-  const minutes = Math.max(0, Math.floor((now - Date.parse(date)) / 60_000));
-  if (!Number.isFinite(minutes)) return 'Time unavailable';
-  if (minutes < 1) return 'Just now';
+  const seconds = Math.max(0, Math.floor((now - Date.parse(date)) / 1_000));
+  if (!Number.isFinite(seconds)) return 'Time unavailable';
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.floor(minutes / 60);
   return hours < 24 ? `${hours} hr ago` : `${Math.floor(hours / 24)} day ago`;
@@ -67,9 +70,9 @@ export function passCard(passes, used = [], now = Date.now(), recent = false) {
 export function renderScreen(screen, controls, snapshot, now = Date.now()) {
   const menu = homeKeyboard(controls);
   if (screen === 'latest') {
-    const recent = (snapshot.recent || []).filter(pass => !controls.used.includes(pass.hash) && Date.parse(pass.published) >= now - 48 * 3_600_000).slice(0, 5);
+    const recent = (snapshot.recent || []).filter(pass => !controls.used.includes(pass.hash) && isFresh(new Date(pass.published), now)).sort((a, b) => Date.parse(b.published) - Date.parse(a.published)).slice(0, 5);
     return recent.length ? passCard(recent, controls.used, now, true) : {
-      text: '<b>🎟 Recent finds</b>\n\nNew finds from this menu update will appear here. Fresh alerts also arrive automatically.\n\nPasses marked used or older than 48 hours are hidden.', reply_markup: menu,
+      text: `<b>🎟 Recent finds</b>\n\nNo passes from the last ${MAX_PASS_AGE_MINUTES} minutes. Fresh alerts arrive automatically.`, reply_markup: menu,
     };
   }
   if (screen === 'sources') {

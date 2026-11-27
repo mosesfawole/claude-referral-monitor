@@ -6,7 +6,7 @@ const now = Date.parse('2026-11-18T10:00:00Z');
 const post = (name, code) => ({
   text: 'Claude guest pass https://t.co/example',
   url: `https://x.com/${name}/status/1234567890`,
-  createdAt: '2026-11-18T09:00:00Z',
+  createdAt: '2026-11-18T09:59:30Z',
   entities: { urls: [`https://claude.ai/referral/${code}?s=ios`] },
 });
 
@@ -27,6 +27,7 @@ test('X search uses keywords without account restrictions and follows pagination
   const result = await scanXSearch('test-key', {}, now, request);
   assert.equal(result.passes.length, 2);
   assert.equal(calls[0].query, 'url:claude.ai/referral -filter:nativeretweets');
+  assert.equal(calls[0].since, '2026-11-18T09:40:00.000Z');
   assert.equal(calls[0].fromUsers, undefined);
   assert.equal(calls[1].cursor, 'page-two');
   assert.deepEqual(result.checkpoint, { completedAt: '2026-11-18T10:00:00.000Z' });

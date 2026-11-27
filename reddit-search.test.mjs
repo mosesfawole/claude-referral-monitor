@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseRedditPosts, scanRedditSearch } from './reddit-search.mjs';
 
 const now = Date.parse('2026-11-18T10:00:00Z');
-const post = { title: 'Claude pass', selftext: '~~https://claude.ai/referral/usedCode12~~ https://claude.ai/referral/freshCode1?s=ios', createdAt: '2026-11-18T09:00:00Z', permalink: '/r/anything/comments/abc/pass/' };
+const post = { title: 'Claude pass', selftext: '~~https://claude.ai/referral/usedCode12~~ https://claude.ai/referral/freshCode1?s=ios', createdAt: '2026-11-18T09:59:30Z', permalink: '/r/anything/comments/abc/pass/' };
 
 test('Reddit search ignores removed posts and crossed-out codes', () => {
   const passes = parseRedditPosts([post, { ...post, removedByCategory: 'deleted' }], now);
@@ -47,5 +47,5 @@ test('a budget pause preserves delivered-page candidates and the next cursor', a
   };
   const result = await scanRedditSearch('test-key', {}, now, transport);
   assert.equal(result.passes.length, 1);
-  assert.deepEqual(result.checkpoint, { time: 'week', cursor: 'next-page' });
+  assert.deepEqual(result.checkpoint, { time: 'hour', cursor: 'next-page', startedAt: new Date(now).toISOString() });
 });

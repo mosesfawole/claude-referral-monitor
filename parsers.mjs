@@ -1,13 +1,16 @@
 import { load } from 'cheerio';
 import { createHash } from 'node:crypto';
 
+export const MAX_PASS_AGE_MINUTES = 20;
+export const MAX_PASS_AGE_MS = MAX_PASS_AGE_MINUTES * 60_000;
+
 export const codeHash = code => createHash('sha256').update(code).digest('hex');
 
 export function publicationTime(value, referenceTime = Date.now()) {
-  const relative = value.trim().match(/^(\d+)\s*(m|min|mins|minutes?|h|hours?|d|days?)\s+ago$/i);
+  const relative = value.trim().match(/^(\d+)\s*(s|sec|secs|seconds?|m|min|mins|minutes?|h|hours?|d|days?)\s+ago$/i);
   if (relative) {
     const unit = relative[2].toLowerCase()[0];
-    const duration = { m: 60_000, h: 3_600_000, d: 86_400_000 }[unit];
+    const duration = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }[unit];
     return new Date(referenceTime - Number(relative[1]) * duration);
   }
   return new Date(value);
@@ -15,7 +18,7 @@ export function publicationTime(value, referenceTime = Date.now()) {
 
 export function isFresh(date, now = Date.now()) {
   const age = now - date.getTime();
-  return Number.isFinite(age) && age >= -300_000 && age <= 48 * 3_600_000;
+  return Number.isFinite(age) && age >= 0 && age <= MAX_PASS_AGE_MS;
 }
 
 export function explicitlyUnavailable(text) {
@@ -33,12 +36,12 @@ export function extractPasses(markup, source, published, now = Date.now()) {
   return codes.map(code => ({ code, url: `https://claude.ai/referral/${code}`, source, published: published.toISOString() }));
 }
 
-export function feedEntries(xml) {
+export function feedEntries(xml, now = Date.now()) {
   const $ = load(xml, { xml: true });
   if (!$('rss, feed').length) throw new Error('Response is not an RSS or Atom feed');
   return $('item, entry').toArray().map(element => {
     const entry = $(element);
-    const published = publicationTime(entry.find('published, pubDate').first().text());
+    const published = publicationTime(entry.find('published, pubDate').first().text(), now);
     const source = entry.find('link[rel="alternate"]').attr('href') || entry.find('link').attr('href') || entry.find('link').first().text();
     const markup = entry.find('description, content, content\\:encoded').map((_, part) => $(part).text()).get().join('\n');
     return { source, published, markup };
@@ -46,7 +49,7 @@ export function feedEntries(xml) {
 }
 
 export function parseFeed(xml, now = Date.now()) {
-  return feedEntries(xml).flatMap(entry => extractPasses(entry.markup, entry.source, entry.published, now));
+  return feedEntries(xml, now).flatMap(entry => extractPasses(entry.markup, entry.source, entry.published, now));
 }
 
 export function parseDirectory(html, referenceTime = Date.now(), now = Date.now()) {

@@ -1,4 +1,4 @@
-import { extractPasses } from './parsers.mjs';
+import { extractPasses, MAX_PASS_AGE_MS } from './parsers.mjs';
 
 export function parseXPosts(posts, now = Date.now()) {
   return posts.flatMap(post => {
@@ -38,13 +38,14 @@ export async function scanXSearch(apiKey, previous = {}, now = Date.now(), reque
     throw error;
   }
 
-  const earliest = new Date(now - 48 * 3_600_000).toISOString();
-  const since = previous.cursor ? previous.since : new Date(Math.max(
-    Date.parse(earliest),
-    Date.parse(previous.completedAt || earliest) - 10 * 60_000,
+  const earliest = now - MAX_PASS_AGE_MS;
+  const resume = previous.cursor && Date.parse(previous.since) >= earliest;
+  const since = resume ? previous.since : new Date(Math.max(
+    earliest,
+    (Date.parse(previous.completedAt) || earliest) - 10 * 60_000,
   )).toISOString();
-  const until = previous.cursor ? previous.until : new Date(now).toISOString();
-  let cursor = previous.cursor;
+  const until = resume ? previous.until : new Date(now).toISOString();
+  let cursor = resume ? previous.cursor : undefined;
   const passes = [];
   for (let page = 0; page < 5; page += 1) {
     if (freeRemaining < 2) break;

@@ -1,4 +1,4 @@
-import { extractPasses } from './parsers.mjs';
+import { extractPasses, MAX_PASS_AGE_MS } from './parsers.mjs';
 
 export function parseRedditPosts(posts, now = Date.now()) {
   return posts.flatMap(post => {
@@ -15,9 +15,9 @@ export async function scanRedditSearch(apiKey, previous = {}, now = Date.now(), 
   const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
   const usage = await request('https://api.weirapp.io/v1/usage', { headers, signal: AbortSignal.timeout(25_000) });
   if (!usage.ok) throw new Error(`Search provider usage returned HTTP ${usage.status}`);
-  const elapsed = now - Date.parse(previous.completedAt || '1970-01-01');
-  const time = previous.time || (elapsed < 55 * 60_000 ? 'hour' : elapsed < 23 * 3_600_000 ? 'day' : 'week');
-  let cursor = previous.cursor;
+  const time = 'hour';
+  let cursor = previous.time === time && now - Date.parse(previous.startedAt) < MAX_PASS_AGE_MS ? previous.cursor : undefined;
+  const startedAt = cursor ? previous.startedAt : new Date(now).toISOString();
   const passes = [];
   for (let page = 0; page < 3; page += 1) {
     const options = {
@@ -49,10 +49,10 @@ export async function scanRedditSearch(apiKey, previous = {}, now = Date.now(), 
     passes.push(...parseRedditPosts(payload.data, now));
     cursor = payload.meta?.nextCursor;
     const oldest = payload.data.at(-1);
-    if (!cursor || (oldest && Date.parse(oldest.createdAt) < now - 48 * 3_600_000)) {
+    if (!cursor || (oldest && Date.parse(oldest.createdAt) < now - MAX_PASS_AGE_MS)) {
       cursor = undefined;
       break;
     }
   }
-  return { passes, checkpoint: cursor ? { time, cursor } : { completedAt: new Date(now).toISOString() } };
+  return { passes, checkpoint: cursor ? { time, cursor, startedAt } : { completedAt: new Date(now).toISOString() } };
 }
